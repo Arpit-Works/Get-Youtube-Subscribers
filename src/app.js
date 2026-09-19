@@ -45,7 +45,7 @@ app.get('/subscribers/:id', async (req, res) => {
     //Check  if the subscriber with given id exists
     if (!subscribers){
       // Send a JSON response 
-      res.status(400).json({message: "subscriber  not found"})
+      return res.status(400).json({message: "subscriber  not found"})
     }
     //Send a JSON response  with the details  of subscribers
     res.status(200).json(subscribers)
