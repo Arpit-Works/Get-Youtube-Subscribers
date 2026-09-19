@@ -23,6 +23,10 @@ if (DATABASE_URL && mongoose.connection.readyState === 0) {
 
 const Subscribers = require("./models/subscribers");
 
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "ok", endpoints: ["/subscribers", "/subscribers/names"] });
+});
+
 app.get("/subscribers", async (req, res) => {
   try {
     const subscribers = await Subscribers.find({});
