@@ -1,70 +1,60 @@
+const dns = require("dns");
+const path = require("path");
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
 
-const express = require('express');
-const app = express()
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
-// Your code goes here
+const app = express();
 
-// Import Subscribers model form subscribers.js
-const Subscribers = require('./models/subscribers')
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cors());
 
-//Get all Subscriber's Details
-app.get('/subscribers', async (req, res) => {
+const DATABASE_URL = process.env.MONGO_URI;
+if (DATABASE_URL && mongoose.connection.readyState === 0) {
+  mongoose.connect(DATABASE_URL);
+  const db = mongoose.connection;
+  db.on("error", (err) => console.log(err));
+  db.once("open", () => console.log("connected to database"));
+}
+
+const Subscribers = require("./models/subscribers");
+
+app.get("/subscribers", async (req, res) => {
   try {
-    //Retrieve all Subscriber's from the database
     const subscribers = await Subscribers.find({});
-    // Send a JSON response with list of Subscriber
     res.status(200).json(subscribers);
   } catch (error) {
-    // Handle error that occur during process
     res.status(500).json({ message: error.message });
   }
 });
 
-//Get Subscriber,s name and Subscribed Channel
-app.get('/subscribers/names', async (req, res) => {
+app.get("/subscribers/names", async (req, res) => {
   try {
-    //Restreive  Subscriber's name and subscribedChannel  from database
-    const subscribers = await Subscribers.find({},{ name: 1, subscribedChannel: 1, _id: 0 });
-    //Send a JSON response  with the filetered response of subscribers
+    const subscribers = await Subscribers.find(
+      {},
+      { name: 1, subscribedChannel: 1, _id: 0 }
+    );
     res.status(200).json(subscribers);
-  }
-  catch (error) {
-     // Handle error that occur during process
-    res.status(500).json(error)
+  } catch (error) {
+    res.status(500).json(error);
   }
 });
 
-
-// Get Subscriber's by ID
-app.get('/subscribers/:id', async (req, res) => {
+app.get("/subscribers/:id", async (req, res) => {
   try {
-    // Extract the id from Request Parameters 
-    let id = req.params.id;
-    //Retrieve Subscriber  by Id from  the database
-    let subscribers = await Subscribers.findById(id);
-    //Check  if the subscriber with given id exists
-    if (!subscribers){
-      // Send a JSON response 
-      return res.status(400).json({message: "subscriber  not found"})
+    const id = req.params.id;
+    const subscribers = await Subscribers.findById(id);
+    if (!subscribers) {
+      return res.status(400).json({ message: "subscriber  not found" });
     }
-    //Send a JSON response  with the details  of subscribers
-    res.status(200).json(subscribers)
-  }
-  catch (error) {
-     // Handle error that occur during process
-    res.status(500).json({ message: error.message })
+    res.status(200).json(subscribers);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
-
-
-
-
-
-
-
-
-
-
-
 
 module.exports = app;
