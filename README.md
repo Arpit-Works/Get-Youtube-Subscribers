@@ -11,7 +11,7 @@ Before running the application, ensure that you have the following installed:
 1. Clone the repository to your local machine:
 
 ```bash
-git clone https://github.com/ArpitVK/Get-Youtube-Subscribers.git
+git clone https://github.com/Arpit-Works/Get-Youtube-Subscribers.git
 ```
 2. Install dependencies:
 
