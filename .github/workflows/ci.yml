@@ -41,9 +41,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-
     needs: test
-
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     env:
@@ -59,82 +57,8 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Verify Vercel GitHub secrets
-        run: |
-          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
-            echo "Repository secret VERCEL_TOKEN is not set."
-            exit 1
-          fi
-          if [ -z "$VERCEL_ORG_ID" ]; then
-            echo "Repository secret VERCEL_ORG_ID is not set."
-            exit 1
-          fi
-          if [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "Repository secret VERCEL_PROJECT_ID is not set."
-            exit 1
-          fi
-
-      - name: Validate Vercel token and project IDs
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          ORG_ID="$(echo "$VERCEL_ORG_ID" | tr -d '[:space:]')"
-          PROJECT_ID="$(echo "$VERCEL_PROJECT_ID" | tr -d '[:space:]')"
-
-          if [[ ! "$PROJECT_ID" =~ ^prj_ ]]; then
-            echo "VERCEL_PROJECT_ID must start with prj_ (use Project Settings → General in Vercel)."
-            exit 1
-          fi
-          if [[ ! "$ORG_ID" =~ ^(team_|user_) ]]; then
-            echo "VERCEL_ORG_ID must start with team_ or user_ (not the team name or project name)."
-            exit 1
-          fi
-
-          USER_HTTP="$(curl -sS -o /tmp/vercel-user.json -w "%{http_code}" \
-            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-            "https://api.vercel.com/v2/user")"
-          if [ "$USER_HTTP" = "200" ]; then
-            USERNAME="$(python3 -c "import json; print(json.load(open('/tmp/vercel-user.json'))['user']['username'])")"
-            echo "Vercel token is valid for user: ${USERNAME}"
-          else
-            echo "Vercel token is invalid or expired (HTTP ${USER_HTTP}). Create a new one at https://vercel.com/account/tokens"
-            cat /tmp/vercel-user.json || true
-            exit 1
-          fi
-
-          TEAM_QUERY=""
-          if [[ "$ORG_ID" == team_* ]]; then
-            TEAM_QUERY="?teamId=${ORG_ID}"
-          fi
-
-          HTTP_CODE="$(curl -sS -o /tmp/vercel-project.json -w "%{http_code}" \
-            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-            "https://api.vercel.com/v9/projects/${PROJECT_ID}${TEAM_QUERY}")"
-
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "Vercel API: project access OK."
-            exit 0
-          fi
-
-          echo "Vercel API returned HTTP ${HTTP_CODE} for this org/project + token."
-          cat /tmp/vercel-project.json || true
-          echo ""
-          echo "Fix checklist:"
-          echo "  1. Create a full Account token at https://vercel.com/account/tokens (not a project-only scoped token)."
-          echo "  2. Set VERCEL_ORG_ID and VERCEL_PROJECT_ID from .vercel/project.json after running: vercel login && vercel link"
-          echo "  3. Expected for this repo link: orgId team_WRZ0av5TonKvz3VeChwkDsYt, projectId prj_IFkdmSRr9xYvc8AAx3s5TkJx4vz2"
-          exit 1
-
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
-
-      - name: Link Vercel project for CI
-        run: |
-          mkdir -p .vercel
-          printf '{"orgId":"%s","projectId":"%s"}\n' \
-            "$(echo "$VERCEL_ORG_ID" | tr -d '[:space:]')" \
-            "$(echo "$VERCEL_PROJECT_ID" | tr -d '[:space:]')" \
-            > .vercel/project.json
 
       - name: Pull Vercel configuration
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
