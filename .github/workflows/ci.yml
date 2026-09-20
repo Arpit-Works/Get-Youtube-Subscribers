@@ -1,28 +1,77 @@
-name: CI
+name: CI/CD
+
 on:
   push:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+
 jobs:
   test:
     runs-on: ubuntu-latest
+
     services:
       mongodb:
         image: mongo:7
         ports:
           - 27017:27017
+
     env:
       MONGO_URI: mongodb://127.0.0.1:27017/subscribers
       PORT: 3000
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
-      - run: npm ci
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Seed database
         run: node src/createDatabase.js
+
       - name: Run tests
         run: npm test
+
+  deploy:
+    runs-on: ubuntu-latest
+
+    needs: test
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel
+
+      - name: Pull Vercel configuration
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_OIDC_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build Vercel project
+        run: vercel build --prod --token=${{ secrets.VERCEL_OIDC_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_OIDC_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
